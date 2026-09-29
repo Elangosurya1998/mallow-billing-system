@@ -1,0 +1,628 @@
+{
+  "info": {
+    "_postman_id": "b1827c19-7231-419b-a01e-b839218d6a71",
+    "name": "Mallow Billing System API",
+    "description": "Comprehensive Postman Workspace for Mallow Multi-Tenant Subscription Billing & Usage-Metering System (Laravel 13 / PHP 8.4+).\n\nFeatures:\n- Exact-once idempotent usage metering (`POST /api/v1/usage`)\n- Rate limiting (120 req/min per API key)\n- Merchant Executive Analytics & HTML Wireframe Dashboard (`GET /api/v1/merchants/{id}/dashboard` & `/merchants/{id}/dashboard`)\n- Plans, Subscriptions, Invoicing & Payments",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Usage Metering & Ingestion",
+      "description": "High-throughput usage ingestion pipeline with exact-once idempotency guarantees and rate limiting.",
+      "item": [
+        {
+          "name": "Record Usage Event (Fresh Submission - HTTP 201)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Generate unique idempotency key for fresh ingestion",
+                  "pm.environment.set('fresh_idemp_key', 'evt_run_' + Date.now() + '_' + Math.floor(Math.random() * 1000));"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Idempotent replay is false for fresh submission', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.idempotent_replay).to.eql(false);",
+                  "    pm.expect(json.data).to.have.property('id');",
+                  "    pm.expect(json.data.metric_identifier).to.eql('api_requests');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customer_id}}\",\n  \"metric_identifier\": \"api_requests\",\n  \"quantity\": 250,\n  \"idempotency_key\": \"{{fresh_idemp_key}}\",\n  \"properties\": {\n    \"endpoint\": \"/api/v1/orders\",\n    \"region\": \"ap-south-1\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/usage",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "usage"]
+            },
+            "description": "Records a resource consumption event. Fresh submissions insert into partitioned usage_events, atomically update daily_usage_summaries, and return HTTP 201 Created."
+          }
+        },
+        {
+          "name": "Replay Usage Event (Idempotent Deduplication - HTTP 200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK (Deduplicated Replay)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Idempotent replay flag is true', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.idempotent_replay).to.eql(true);",
+                  "    pm.expect(json.data.idempotency_key).to.eql('idemp_replay_fixed_key_001');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customer_id}}\",\n  \"metric_identifier\": \"api_requests\",\n  \"quantity\": 100,\n  \"idempotency_key\": \"idemp_replay_fixed_key_001\",\n  \"properties\": {\n    \"retry\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/usage",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "usage"]
+            },
+            "description": "Submitting the same idempotency key for the same customer returns HTTP 200 with idempotent_replay: true without double-counting units on daily_usage_summaries."
+          }
+        },
+        {
+          "name": "Ingest Usage Event (Direct / Tenant Scoped)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customer_id}}\",\n  \"metric\": \"api_requests\",\n  \"quantity\": 50,\n  \"idempotency_key\": \"evt_direct_{{$timestamp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/usage/events",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "usage", "events"]
+            }
+          }
+        },
+        {
+          "name": "Batch Ingest Usage Events",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"events\": [\n    {\n      \"customer_id\": \"{{customer_id}}\",\n      \"metric\": \"api_requests\",\n      \"quantity\": 120,\n      \"idempotency_key\": \"batch_evt_{{$timestamp}}_1\"\n    },\n    {\n      \"customer_id\": \"{{customer_id}}\",\n      \"metric\": \"api_requests\",\n      \"quantity\": 80,\n      \"idempotency_key\": \"batch_evt_{{$timestamp}}_2\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/usage/batch",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "usage", "batch"]
+            }
+          }
+        },
+        {
+          "name": "Get Usage Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/usage/summary?start_date=2026-09-01&end_date=2026-09-30",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "usage", "summary"],
+              "query": [
+                {
+                  "key": "start_date",
+                  "value": "2026-09-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-09-30"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Merchant Dashboard & Analytics",
+      "description": "Endpoints providing executive intelligence, burn rate projected overages, top 5 consumers, and churn alerts.",
+      "item": [
+        {
+          "name": "Get Merchant Dashboard (JSON API)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Dashboard contains core KPI metrics', function () {",
+                  "    var json = pm.response.json().data;",
+                  "    pm.expect(json).to.have.property('merchant_id');",
+                  "    pm.expect(json).to.have.property('cycle_usage');",
+                  "    pm.expect(json).to.have.property('projected_overage_revenue');",
+                  "    pm.expect(json).to.have.property('top_customers_by_usage');",
+                  "    pm.expect(json).to.have.property('churn_risk_customers');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/merchants/{{merchant_id}}/dashboard",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "merchants", "{{merchant_id}}", "dashboard"]
+            },
+            "description": "Calculates cycle usage vs included quota, burn rate projected overage revenue in integer cents, top 5 consumers sorted descending by percentage consumed, and churn risks (>50% MoM drop) using pre-aggregated daily summaries."
+          }
+        },
+        {
+          "name": "View Merchant Dashboard (HTML Web View)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is HTML document', function () {",
+                  "    pm.response.to.have.header('Content-Type');",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('text/html');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/html"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/merchants/{{merchant_id}}/dashboard",
+              "host": ["{{base_url}}"],
+              "path": ["merchants", "{{merchant_id}}", "dashboard"]
+            },
+            "description": "Renders the visual Tailwind CSS / Chart.js dashboard matching the assignment wireframe layout specification."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Plans Catalog",
+      "description": "Recurring billing plan models, allowance configurations, and overage pricing.",
+      "item": [
+        {
+          "name": "List All Plans",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "plans"]
+            }
+          }
+        },
+        {
+          "name": "Create Plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Enterprise Pro\",\n  \"slug\": \"enterprise-pro-{{$timestamp}}\",\n  \"description\": \"Enterprise plan with 500k units allowance\",\n  \"invoice_interval\": \"monthly\",\n  \"base_price_cents\": 99900,\n  \"included_units\": 500000,\n  \"overage_unit_price_cents\": 25\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "plans"]
+            }
+          }
+        },
+        {
+          "name": "Get Plan Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/plans/{{plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "plans", "{{plan_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Subscriptions Lifecycle",
+      "description": "Manage subscription statuses, mid-cycle upgrades/downgrades, cancellations, and resumptions.",
+      "item": [
+        {
+          "name": "Create Subscription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan_id\": \"{{plan_id}}\",\n  \"quantity\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/subscriptions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "subscriptions"]
+            }
+          }
+        },
+        {
+          "name": "Get Subscription Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/subscriptions/{{subscription_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "subscriptions", "{{subscription_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Switch Plan Mid-Cycle (Proration & Segmentation)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan_id\": \"{{plan_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/subscriptions/{{subscription_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "subscriptions", "{{subscription_id}}"]
+            },
+            "description": "Divides active cycle into independent segments (Segment 1: old plan rates & allowance, Segment 2: new plan rates & allowance), prorating base fees and crediting downgrades to customer balance."
+          }
+        },
+        {
+          "name": "Cancel Subscription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"immediately\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/subscriptions/{{subscription_id}}/cancel",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "subscriptions", "{{subscription_id}}", "cancel"]
+            }
+          }
+        },
+        {
+          "name": "Resume Subscription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/subscriptions/{{subscription_id}}/resume",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "subscriptions", "{{subscription_id}}", "resume"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Invoicing & Payments",
+      "description": "Access end-of-cycle invoices, itemized overage line breakdowns, and payment execution.",
+      "item": [
+        {
+          "name": "List Invoices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/invoices",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "invoices"]
+            }
+          }
+        },
+        {
+          "name": "Get Invoice Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/invoices/{{invoice_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "invoices", "{{invoice_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Pay Invoice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_method_id\": \"pm_card_visa_test\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/invoices/{{invoice_id}}/pay",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "invoices", "{{invoice_id}}", "pay"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Tenants / Merchant Accounts",
+      "description": "Administrative merchant/tenant endpoints.",
+      "item": [
+        {
+          "name": "Create Tenant",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nexus Corp\",\n  \"slug\": \"nexus-corp-{{$timestamp}}\",\n  \"email\": \"admin@nexuscorp.io\",\n  \"currency\": \"USD\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/tenants",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tenants"]
+            }
+          }
+        },
+        {
+          "name": "Get Tenant",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/tenants/{{tenant_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tenants", "{{tenant_id}}"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://mallow-billing-system.ddev.site"
+    }
+  ]
+}
