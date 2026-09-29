@@ -192,7 +192,7 @@ flowchart LR
 
     Event -->|1. Bulk Fast Insert| RawEvents
     Event -->|2. Atomic Grouped Roll-Up| DailyRollup
-    InvoiceGen -->|3. O(30) Sub-ms Query| DailyRollup
+    InvoiceGen -->|"3. O(30) Sub-ms Query"| DailyRollup
     InvoiceGen -.->|Bypasses Raw Scans| RawEvents
 ```
 

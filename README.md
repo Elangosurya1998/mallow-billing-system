@@ -27,15 +27,15 @@ Complete architectural derivations, schema designs, and formal mathematical proo
 ```mermaid
 flowchart TD
     API["POST /api/v1/usage\n(Rate Limit: 120 req/min)"] --> IDEMP{"Idempotency Engine\n(customer_id, idempotency_key)"}
-    IDEMP -->|Duplicate Key| REPLAY["Return HTTP 200\nidempotent_replay: true\n(No Double Count)"]
-    IDEMP -->|Fresh Event| RAW["Partitioned Table\nusage_events\n(RANGE on timestamp)"]
+    IDEMP -->|"Duplicate Key"| REPLAY["Return HTTP 200\nidempotent_replay: true\n(No Double Count)"]
+    IDEMP -->|"Fresh Event"| RAW["Partitioned Table\nusage_events\n(RANGE on timestamp)"]
     RAW --> ROLLUP["Atomic Increment\ndaily_usage_summaries\n(customer_id, metric, date)"]
     ROLLUP --> RESP["Return HTTP 201 Created"]
     
     CRON["Daily / End-of-Cycle Queues"] --> JOB1["AggregateDailyUsageJob\nchunkById(5000)"]
     JOB1 --> ROLLUP
     CRON --> JOB2["GenerateCycleInvoicesJob\nchunkById(1000)"]
-    ROLLUP -->|O(30) Lookups\nBypasses 50L+ rows| JOB2
+    ROLLUP -->|"O(30) Lookups - Bypasses 50L+ rows"| JOB2
     JOB2 --> PRORATE["Evaluate Segments &\nProrated Allowances"]
     PRORATE --> CREDIT["Deduct Customer Credit Balance"]
     CREDIT --> INV["Persist Invoice & InvoiceItems\n(Integer Cents)"]
