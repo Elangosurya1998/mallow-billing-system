@@ -1,5 +1,32 @@
 # Changelog & Architectural Milestones
 
+## [Phase 6] - Merchant & Customer Lifecycle Management, Universal API Web Console & Complete Documentation Suite
+
+### Completed Milestones
+1. **Merchant Lifecycle Management (Web UI + RESTful API)**:
+   - Built full merchant registration workflow (`GET /merchants/create`, `POST /merchants`, `POST /api/v1/merchants`) with auto-provisioned default Starter and Growth plans, enabling immediate customer enrollment and metering.
+   - Implemented merchant editing interface (`GET /merchants/{merchant}/edit`, `PUT /merchants/{merchant}`, `PUT /api/v1/merchants/{tenant}`) for modifying name, slug, email, operational currency, timezone, and active status.
+   - Added validation via `StoreMerchantRequest` and `UpdateMerchantRequest` (with slug uniqueness ignoring current merchant ID across both web and API parameters).
+2. **Customer Management & Subscription Enrollment (Web UI + RESTful API)**:
+   - Built customer enrollment interface (`GET /merchants/{merchant}/customers/create`, `POST /merchants/{merchant}/customers`, `POST /api/v1/customers`).
+   - Supports initial credit balance (decimal input safely converted to integer cents), external ERP/CRM reference keys, and optional immediate subscription plan assignment (creating an active `Subscription` and initial `SubscriptionPeriod`).
+   - Created `CustomerApiController` with tenant-scoped endpoints (`GET /api/v1/customers`, `POST /api/v1/customers`, `GET /api/v1/customers/{customer}`) and `CustomerResource`.
+3. **Interactive API Web Console & Playground (`/console` & `/merchants/{id}/console`)**:
+   - Expanded the interactive web console to support all 20 system endpoints across 6 operational categories:
+     - Usage Metering (`/usage`, `/usage/batch`, `/usage/summary`, `/usage/events`)
+     - Customer Accounts (`/customers`, `POST /customers`, `/customers/{id}`)
+     - Merchants & Tenants (`POST /merchants`, `GET /merchants/{id}`, `PUT /merchants/{id}`, `/dashboard`)
+     - Plans Catalog (`GET /plans`, `POST /plans`, `GET /plans/{id}`)
+     - Subscriptions Lifecycle (`POST /subscriptions`, `GET /subscriptions/{id}`, `PATCH /subscriptions/{id}`, `/cancel`, `/resume`)
+     - Invoicing & Payments (`GET /invoices`, `GET /invoices/{id}`, `POST /invoices/{id}/pay`)
+   - Features dynamic idempotency key generation, replay deduplication testing, real-time HTTP response badges, roundtrip latency timers, and JSON syntax display.
+4. **Complete Documentation & Postman Workspace Updates**:
+   - Fully revised `docs/API_REFERENCE.md` with complete technical specifications, request/response JSON schemas, headers, and validation errors for all 20 APIs.
+   - Extended Postman collection (`postman/Mallow_Billing_System.postman_collection.json`) to 21 requests across 7 organized feature folders (including Customer Management and Update Merchant).
+   - Updated `docs/POSTMAN_SETUP.md` and root `README.md` reflecting 42 automated tests and 483 assertions passing at 100%.
+
+---
+
 ## [Phase 5] - Merchant Dashboard, Comprehensive Billing Test Suite & Submission Runbook
 
 ### Completed Milestones

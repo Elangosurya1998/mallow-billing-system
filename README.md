@@ -17,9 +17,9 @@ Complete architectural derivations, schema designs, and formal mathematical proo
 
 - 📐 **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**: Deep dive into 50L+ row scaling, MySQL/MariaDB physical range partitioning on `usage_events.timestamp`, index pruning, and the two-tier roll-up aggregation architecture reducing monthly invoice scan complexity from $O(5,000,000)$ to $O(30)$.
 - 🧮 **[docs/PRORATION_MATH.md](docs/PRORATION_MATH.md)**: Formal mathematical equations for mid-cycle signups and segmented plan transitions with worked numerical proofs demonstrating conservation of financial commitment ($B_1 + C_{\text{unused}} = B_{\text{initial}}$).
-- 🌐 **[docs/API_REFERENCE.md](docs/API_REFERENCE.md)**: Complete REST API specifications for `/api/v1/usage` (exact-once idempotency replay, rate limiting at 120 req/min) and `/api/v1/merchants/{id}/dashboard`.
+- 🌐 **[docs/API_REFERENCE.md](docs/API_REFERENCE.md)**: Exhaustive REST API specifications across all 20 system endpoints (meter ingestion with exact-once idempotency replay, customer enrollment with credit balances, merchant updates, cached plans, mid-cycle switches, invoices, payment engine, and web management views).
 - 📜 **[docs/CHANGELOG.md](docs/CHANGELOG.md)**: Milestone logs, architectural decisions, and release notes across all 5 implementation phases.
-- 📮 **[docs/POSTMAN_SETUP.md](docs/POSTMAN_SETUP.md)**: Complete step-by-step Postman setup, variable references, automated collection test assertions, and Newman CLI runbook.
+- 📮 **[docs/POSTMAN_SETUP.md](docs/POSTMAN_SETUP.md)**: Complete step-by-step Postman setup, variable references, automated collection test assertions, and Newman CLI runbook across 7 feature modules.
 - 📁 **[prompts/](prompts/)**: Prompt histories, instructions, and review artifacts (see [Prompts Directory](#reviewing-the-prompts-directory)).
 
 ### High-Scale Data Flow
@@ -127,9 +127,10 @@ php artisan test tests/Feature/Phase5MerchantDashboardTest.php
 php artisan test tests/Feature/Phase5BillingEngineTest.php
 php artisan test tests/Feature/MerchantDashboardWebViewTest.php
 php artisan test tests/Feature/ApiConsoleWebViewTest.php
+php artisan test tests/Feature/MerchantAndCustomerApiTest.php
 ```
 
-### Verified Test Matrix (30 Tests, 381 Assertions)
+### Verified Test Matrix (42 Tests, 483 Assertions)
 
 | Test Suite | Focus Area | Assertions | Result |
 | :--- | :--- | :---: | :---: |
@@ -139,9 +140,10 @@ php artisan test tests/Feature/ApiConsoleWebViewTest.php
 | `Phase4QueueInvoicingTest` | `chunkById(5000)` aggregation, cycle invoices, segmented cycles | 40 | PASS |
 | `Phase5MerchantDashboardTest` | Quota tracking, projected overages, top 5 consumers, churn risk | 38 | PASS |
 | `Phase5BillingEngineTest` | Idempotency replay, signup proration, switch math, overage edges | 61 | PASS |
-| `MerchantDashboardWebViewTest` | Blade layout, wireframe badge, metric cards, 30-day chart canvas, merchants portal, quick switcher | 28 | PASS |
-| `ApiConsoleWebViewTest` | API Web Console, interactive meter event submissions, merchant scope | 12 | PASS |
-| **Total** | **Full System Verification** | **381** | **PASS** |
+| `MerchantDashboardWebViewTest` | Blade layout, wireframe badge, metric cards, 30-day chart canvas, merchants directory, quick switcher, create/edit merchant, customer enrollment | 61 | PASS |
+| `ApiConsoleWebViewTest` | API Web Console, interactive submissions across endpoints, tenant scopes, proration | 53 | PASS |
+| `MerchantAndCustomerApiTest` | RESTful API merchant lifecycle (create/update), tenant-scoped customer onboarding with plan & credit | 28 | PASS |
+| **Total** | **Full System Verification (100% Pass Rate)** | **483** | **PASS** |
 
 ---
 
@@ -177,12 +179,13 @@ A complete Postman workspace export is included under the [`/postman`](postman/)
 
 | Folder | Endpoints Covered | Automated Tests & Assertions |
 | :--- | :--- | :--- |
-| **1. Usage Metering & Ingestion** | `POST /api/v1/usage`<br>`GET /api/v1/usage/summary`<br>`GET /api/v1/usage/events` | - Fresh submission asserts `HTTP 201 Created` & `idempotent_replay: false`.<br>- **Idempotency Replay**: Re-sends same key, asserts `HTTP 200 OK` & `idempotent_replay: true` without incrementing counters. |
+| **1. Usage Metering & Ingestion** | `POST /api/v1/usage`<br>`POST /api/v1/usage/batch`<br>`GET /api/v1/usage/summary`<br>`GET /api/v1/usage/events` | - Fresh submission asserts `HTTP 201 Created` & `idempotent_replay: false`.<br>- **Idempotency Replay**: Re-sends same key, asserts `HTTP 200 OK` & `idempotent_replay: true` without incrementing counters.<br>- Batch ingestion asserts transactional processing. |
 | **2. Merchant Dashboard & Analytics** | `GET /api/v1/merchants/{id}/dashboard`<br>`GET /merchants/{id}/dashboard` | - Asserts JSON response schema, quota percentages, projected overage currency, top 5 ranked accounts, and churn drops.<br>- Asserts Web View returns `HTTP 200 OK` with wireframe layout and Chart.js integration. |
-| **3. Plans Catalog** | `GET /api/v1/plans`<br>`POST /api/v1/plans`<br>`GET /api/v1/plans/{id}` | - Asserts plan retrieval, tier pricing structure, and integer-cent validation. |
-| **4. Subscriptions Lifecycle** | `POST /api/v1/subscriptions`<br>`PATCH /api/v1/subscriptions/{id}/switch-plan`<br>`POST /api/v1/subscriptions/{id}/cancel` | - Asserts mid-cycle plan segmenting and credit rollover balance. |
-| **5. Invoices & Payments** | `GET /api/v1/invoices`<br>`GET /api/v1/invoices/{id}`<br>`POST /api/v1/invoices/{id}/pay` | - Asserts invoice line item breakdown (base subscription vs overage). |
-| **6. Tenants / Merchant Accounts** | `POST /api/v1/tenants`<br>`GET /api/v1/tenants/{id}` | - Asserts multi-tenant merchant onboarding and API key generation. |
+| **3. Plans Catalog** | `GET /api/v1/plans`<br>`POST /api/v1/plans`<br>`GET /api/v1/plans/{id}` | - Asserts plan retrieval, tier pricing structure, Redis caching (10m TTL), and integer-cent validation. |
+| **4. Subscriptions Lifecycle** | `POST /api/v1/subscriptions`<br>`PATCH /api/v1/subscriptions/{id}`<br>`POST /api/v1/subscriptions/{id}/cancel`<br>`POST /api/v1/subscriptions/{id}/resume` | - Asserts mid-cycle plan segmenting and credit rollover balance. |
+| **5. Invoices & Payments** | `GET /api/v1/invoices`<br>`GET /api/v1/invoices/{id}`<br>`POST /api/v1/invoices/{id}/pay` | - Asserts invoice line item breakdown (base subscription vs overage) and payment transaction transition. |
+| **6. Tenants / Merchant Accounts** | `POST /api/v1/tenants`<br>`GET /api/v1/tenants/{id}`<br>`PUT /api/v1/merchants/{id}` | - Asserts multi-tenant merchant onboarding, retrieval, and profile updates. |
+| **7. Customer Management** | `GET /api/v1/customers`<br>`POST /api/v1/customers`<br>`GET /api/v1/customers/{id}` | - Asserts tenant-scoped customer listing, registration with initial credit balance & plan subscription, and profile retrieval. |
 
 For detailed setup directions, Newman CLI execution, and troubleshooting, refer to **[`docs/POSTMAN_SETUP.md`](docs/POSTMAN_SETUP.md)**.
 

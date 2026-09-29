@@ -20,6 +20,7 @@ class ApiConsoleController extends Controller
                 'customers' => fn ($q) => $q->orderBy('name'),
                 'plans' => fn ($q) => $q->where('is_active', true)->orderBy('name'),
                 'subscriptions' => fn ($q) => $q->with(['customer', 'plan', 'periods'])->where('status', 'active'),
+                'invoices' => fn ($q) => $q->latest()->limit(20),
             ])
             ->orderBy('name')
             ->get();
@@ -45,6 +46,7 @@ class ApiConsoleController extends Controller
             'customers' => fn ($q) => $q->orderBy('name'),
             'plans' => fn ($q) => $q->where('is_active', true)->orderBy('name'),
             'subscriptions' => fn ($q) => $q->with(['customer', 'plan', 'periods'])->where('status', 'active'),
+            'invoices' => fn ($q) => $q->latest()->limit(20),
         ]);
 
         $merchants = Merchant::query()->select(['id', 'name', 'slug', 'currency'])->orderBy('name')->get();

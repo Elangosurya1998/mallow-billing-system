@@ -10,7 +10,7 @@ The Postman files are stored in the [`postman/`](../postman/) directory:
 
 | File | Type | Target Environment | Description |
 | :--- | :--- | :--- | :--- |
-| [`postman/Mallow_Billing_System.postman_collection.json`](../postman/Mallow_Billing_System.postman_collection.json) | Collection (v2.1.0) | Universal | 17 structured REST requests across 6 feature modules with automated test assertions and pre-request dynamic generators. |
+| [`postman/Mallow_Billing_System.postman_collection.json`](../postman/Mallow_Billing_System.postman_collection.json) | Collection (v2.1.0) | Universal | 21 structured REST requests across 7 feature modules with automated test assertions and pre-request dynamic generators. |
 | [`postman/Mallow_Billing_System_Local.postman_environment.json`](../postman/Mallow_Billing_System_Local.postman_environment.json) | Environment | **Without DDEV** (Native PHP / `artisan serve` / Herd / Valet) | `base_url`: `http://127.0.0.1:8000`. Plain HTTP without SSL certificates. |
 | [`postman/Mallow_Billing_System.postman_environment.json`](../postman/Mallow_Billing_System.postman_environment.json) | Environment | **With DDEV** (Docker / Traefik SSL) | `base_url`: `https://mallow-billing-system.ddev.site`. Uses local DDEV HTTPS. |
 
@@ -96,7 +96,8 @@ Postman Workspace
 │       ├── 📁 3. Plans Catalog
 │       ├── 📁 4. Subscriptions Lifecycle
 │       ├── 📁 5. Invoices & Payments
-│       └── 📁 6. Tenants / Merchant Accounts
+│       ├── 📁 6. Tenants / Merchant Accounts
+│       └── 📁 7. Customer Management
 └── Environments
     ├── ⚙️ Mallow Billing System - Local Artisan (127.0.0.1:8000)  [WITHOUT DDEV]
     └── ⚙️ Mallow Billing System - Local DDEV Environment         [WITH DDEV]
@@ -208,10 +209,20 @@ Tests automated period-end invoice generation:
 ---
 
 ### Folder 6: Tenants / Merchant Accounts
-Tests multi-tenant isolation and merchant provisioning:
+Tests multi-tenant isolation, merchant provisioning, and updating:
 
-- **`Create Tenant / Merchant`**: `POST /api/v1/tenants`
+- **`Create Tenant / Merchant`**: `POST /api/v1/tenants` (or `POST /api/v1/merchants`)
 - **`Get Tenant Details`**: `GET /api/v1/tenants/{{tenant_id}}`
+- **`Update Merchant Profile`**: `PUT /api/v1/merchants/{{tenant_id}}` (Updates operational currency, email, timezone, and active status)
+
+---
+
+### Folder 7: Customer Management
+Tests customer lifecycle under strict tenant isolation:
+
+- **`List Customers`**: `GET /api/v1/customers` (Scoped to tenant via `X-Tenant-ID` header)
+- **`Create Customer`**: `POST /api/v1/customers` (Supports initial credit balance and immediate plan subscription enrollment)
+- **`Get Customer Details`**: `GET /api/v1/customers/{{customer_id}}`
 
 ---
 

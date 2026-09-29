@@ -615,6 +615,108 @@
               "path": ["api", "v1", "tenants", "{{tenant_id}}"]
             }
           }
+        },
+        {
+          "name": "Update Merchant",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Acme Corporation International\",\n  \"slug\": \"acme-corp\",\n  \"email\": \"billing@acmecorp.com\",\n  \"currency\": \"INR\",\n  \"timezone\": \"UTC\",\n  \"status\": \"active\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/merchants/{{tenant_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "merchants", "{{tenant_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Customer Management",
+      "description": "Multi-tenant customer lifecycle management, credit balances, and plan enrollment.",
+      "item": [
+        {
+          "name": "List Customers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/customers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "customers"]
+            }
+          }
+        },
+        {
+          "name": "Create Customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"HyperScale Systems Inc\",\n  \"email\": \"finance@hyperscale.io\",\n  \"currency\": \"USD\",\n  \"credit_balance\": 50.00,\n  \"external_reference\": \"ERP-CUST-901\",\n  \"plan_id\": \"{{plan_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/customers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "customers"]
+            }
+          }
+        },
+        {
+          "name": "Get Customer Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/customers/{{customer_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "customers", "{{customer_id}}"]
+            }
+          }
         }
       ]
     }
