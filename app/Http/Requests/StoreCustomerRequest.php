@@ -6,7 +6,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreTenantRequest extends FormRequest
+class StoreCustomerRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -17,10 +17,12 @@ class StoreTenantRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'slug' => ['required', 'string', 'max:100', 'unique:merchants,slug'],
             'email' => ['required', 'email', 'max:255'],
             'currency' => ['sometimes', 'string', 'size:3'],
+            'credit_balance' => ['nullable', 'numeric', 'min:0'],
+            'external_reference' => ['nullable', 'string', 'max:255'],
             'timezone' => ['sometimes', 'string', 'timezone'],
+            'plan_id' => ['nullable', 'uuid', 'exists:plans,id'],
         ];
     }
 }

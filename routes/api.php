@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\CustomerApiController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\MerchantDashboardController;
 use App\Http\Controllers\Api\PlanController;
@@ -13,9 +14,13 @@ Route::prefix('v1')->group(function () {
     // Merchant Analytics & Dashboard
     Route::get('/merchants/{id}/dashboard', [MerchantDashboardController::class, 'show']);
 
-    // Public / Administrative Tenant Endpoints
+    // Public / Administrative Tenant & Merchant Endpoints
     Route::post('/tenants', [TenantController::class, 'store']);
     Route::get('/tenants/{tenant}', [TenantController::class, 'show']);
+    Route::put('/tenants/{tenant}', [TenantController::class, 'update']);
+    Route::post('/merchants', [TenantController::class, 'store']);
+    Route::get('/merchants/{tenant}', [TenantController::class, 'show']);
+    Route::put('/merchants/{tenant}', [TenantController::class, 'update']);
 
     // Meter Ingestion Pipeline (Rate-limited at 120 req/min per API key)
     Route::post('/usage', [UsageController::class, 'store'])->middleware('throttle:api');
@@ -27,6 +32,11 @@ Route::prefix('v1')->group(function () {
 
     // Tenant-Scoped Protected Routes
     Route::middleware(['tenant'])->group(function () {
+        // Customer Management
+        Route::get('/customers', [CustomerApiController::class, 'index']);
+        Route::post('/customers', [CustomerApiController::class, 'store']);
+        Route::get('/customers/{customer}', [CustomerApiController::class, 'show']);
+
         // Subscriptions Lifecycle
         Route::post('/subscriptions', [SubscriptionController::class, 'store']);
         Route::get('/subscriptions/{subscription}', [SubscriptionController::class, 'show']);

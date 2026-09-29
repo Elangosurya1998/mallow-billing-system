@@ -31,7 +31,11 @@
                     </p>
                 </div>
             </div>
-            <div>
+            <div class="flex items-center gap-3">
+                <a href="{{ route('merchants.create') }}" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3.5 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    + Add Merchant
+                </a>
                 <a href="{{ route('api.console') }}" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3.5 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1.5">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                     API Web Console
@@ -41,7 +45,18 @@
     </header>
 
     <!-- Main Container -->
-    <main class="max-w-7xl mx-auto px-6 py-8 flex-1 w-full space-y-8">
+    <main class="max-w-7xl mx-auto px-6 py-8 flex-1 w-full space-y-6">
+
+        <!-- Flash Success Notification -->
+        @if(session('success'))
+            <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl text-xs flex items-center justify-between shadow-xs">
+                <div class="flex items-center gap-2">
+                    <span class="text-emerald-600 text-base">✅</span>
+                    <span class="font-medium">{{ session('success') }}</span>
+                </div>
+                <button type="button" onclick="this.parentElement.remove()" class="text-emerald-600 hover:text-emerald-900 font-bold">&times;</button>
+            </div>
+        @endif
 
         <!-- Page Introduction Banner -->
         <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -57,16 +72,20 @@
                 </p>
             </div>
 
-            <!-- Quick Stats Counters -->
+            <!-- Quick Stats & Add Merchant CTA -->
             <div class="flex items-center gap-4 shrink-0">
-                <div class="bg-slate-50 rounded-lg p-3 border border-slate-200 text-center min-w-[110px]">
+                <div class="bg-slate-50 rounded-lg p-3 border border-slate-200 text-center min-w-[90px]">
                     <span class="text-2xl font-bold text-slate-900">{{ $merchants->count() }}</span>
                     <p class="text-xs font-medium text-slate-500">Merchants</p>
                 </div>
-                <div class="bg-slate-50 rounded-lg p-3 border border-slate-200 text-center min-w-[110px]">
+                <div class="bg-slate-50 rounded-lg p-3 border border-slate-200 text-center min-w-[90px]">
                     <span class="text-2xl font-bold text-blue-600">{{ $merchants->sum('customers_count') }}</span>
                     <p class="text-xs font-medium text-slate-500">Customers</p>
                 </div>
+                <a href="{{ route('merchants.create') }}" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-3 rounded-lg shadow-sm transition flex items-center gap-1.5 h-full">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    <span>Add Merchant</span>
+                </a>
             </div>
         </div>
 
@@ -100,10 +119,15 @@
                                     </span>
                                 </div>
                             </div>
-                            <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                {{ ucfirst($merchant->status ?? 'active') }}
-                            </span>
+                            <div class="flex items-center gap-1.5">
+                                <a href="{{ route('merchants.edit', $merchant) }}" title="Edit Merchant" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                </a>
+                                <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                    {{ ucfirst($merchant->status ?? 'active') }}
+                                </span>
+                            </div>
                         </div>
 
                         <!-- Merchant Metadata Badges -->
@@ -150,6 +174,9 @@
                             Switch to Dashboard
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                         </a>
+                        <a href="{{ route('merchants.edit', $merchant) }}" title="Edit Merchant" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2.5 rounded-lg font-medium border border-slate-200 transition">
+                            Edit
+                        </a>
                         <a href="{{ url('/api/v1/merchants/' . $merchant->id . '/dashboard') }}" target="_blank" title="View JSON Analytics API" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2.5 rounded-lg font-mono border border-slate-200 transition">
                             {JSON}
                         </a>
@@ -158,8 +185,10 @@
             @empty
                 <div class="col-span-full bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center">
                     <p class="text-base font-semibold text-slate-700 mb-1">No merchants found in database</p>
-                    <p class="text-sm text-slate-500 mb-4">Run the database seeder to populate sample merchant accounts.</p>
-                    <code class="bg-slate-100 text-xs px-3 py-1.5 rounded text-slate-800 font-mono">php artisan db:seed</code>
+                    <p class="text-sm text-slate-500 mb-4">Click below to create your first merchant account.</p>
+                    <a href="{{ route('merchants.create') }}" class="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2 rounded-lg transition">
+                        + Add Merchant
+                    </a>
                 </div>
             @endforelse
         </div>

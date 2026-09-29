@@ -171,4 +171,115 @@ class MerchantDashboardWebViewTest extends TestCase
         $response->assertSee(route('merchants.dashboard', $m2));
         $response->assertSee('Nexus Cloud Technologies (EUR)');
     }
+
+    public function test_merchant_create_page_renders_and_merchant_is_created_with_plans(): void
+    {
+        $response = $this->get(route('merchants.create'));
+        $response->assertOk();
+        $response->assertViewIs('merchants.create');
+        $response->assertSee('Register New Merchant');
+
+        $postResponse = $this->post(route('merchants.store'), [
+            'name' => 'Zenith Global Inc',
+            'email' => 'admin@zenithglobal.com',
+            'currency' => 'USD',
+            'timezone' => 'UTC',
+            'status' => 'active',
+        ]);
+
+        $merchant = Merchant::where('email', 'admin@zenithglobal.com')->first();
+        $this->assertNotNull($merchant);
+        $this->assertEquals('Zenith Global Inc', $merchant->name);
+        $this->assertEquals('zenith-global-inc', $merchant->slug);
+        $this->assertEquals(2, $merchant->plans()->count());
+
+        $postResponse->assertRedirect(route('merchants.dashboard', $merchant));
+        $postResponse->assertSessionHas('success');
+    }
+
+    public function test_merchant_edit_page_renders_and_merchant_is_updated(): void
+    {
+        $merchant = Merchant::create([
+            'name' => 'Original Name',
+            'slug' => 'original-slug',
+            'email' => 'old@example.com',
+            'currency' => 'USD',
+            'timezone' => 'UTC',
+            'status' => 'active',
+        ]);
+
+        $response = $this->get(route('merchants.edit', $merchant));
+        $response->assertOk();
+        $response->assertViewIs('merchants.edit');
+        $response->assertSee('Original Name');
+
+        $putResponse = $this->put(route('merchants.update', $merchant), [
+            'name' => 'Renamed Corporation',
+            'slug' => 'original-slug',
+            'email' => 'updated@example.com',
+            'currency' => 'EUR',
+            'timezone' => 'Europe/Berlin',
+            'status' => 'active',
+        ]);
+
+        $merchant->refresh();
+        $this->assertEquals('Renamed Corporation', $merchant->name);
+        $this->assertEquals('EUR', $merchant->currency);
+        $this->assertEquals('Europe/Berlin', $merchant->timezone);
+
+        $putResponse->assertRedirect(route('merchants.dashboard', $merchant));
+        $putResponse->assertSessionHas('success');
+    }
+
+    public function test_customer_create_page_renders_and_customer_is_enrolled_with_subscription(): void
+    {
+        $merchant = Merchant::create([
+            'name' => 'Cloud Provider Corp',
+            'slug' => 'cloud-provider',
+            'email' => 'ops@cloudprovider.com',
+            'currency' => 'USD',
+        ]);
+
+        $plan = Plan::create([
+            'merchant_id' => $merchant->id,
+            'name' => 'Standard Tier',
+            'slug' => 'standard',
+            'invoice_interval' => 'monthly',
+            'base_price_cents' => 4900,
+            'included_units' => 20000,
+            'overage_unit_price_cents' => 4,
+            'is_active' => true,
+        ]);
+
+        $response = $this->get(route('merchants.customers.create', $merchant));
+        $response->assertOk();
+        $response->assertViewIs('merchants.customers.create');
+        $response->assertSee('Standard Tier');
+
+        $postResponse = $this->post(route('merchants.customers.store', $merchant), [
+            'name' => 'HyperScale Software',
+            'email' => 'finance@hyperscale.io',
+            'currency' => 'USD',
+            'credit_balance' => '25.50',
+            'external_reference' => 'REF-9921',
+            'timezone' => 'UTC',
+            'plan_id' => $plan->id,
+        ]);
+
+        $customer = Customer::where('email', 'finance@hyperscale.io')->first();
+        $this->assertNotNull($customer);
+        $this->assertEquals('HyperScale Software', $customer->name);
+        $this->assertEquals(2550, $customer->credit_balance_cents);
+        $this->assertEquals($merchant->id, $customer->merchant_id);
+
+        // Assert subscription and period were automatically created
+        $subscription = $customer->subscriptions()->first();
+        $this->assertNotNull($subscription);
+        $this->assertEquals($plan->id, $subscription->plan_id);
+        $this->assertEquals('active', $subscription->status);
+        $this->assertEquals(1, $subscription->periods()->count());
+
+        $postResponse->assertRedirect(route('merchants.dashboard', $merchant));
+        $postResponse->assertSessionHas('success');
+    }
 }

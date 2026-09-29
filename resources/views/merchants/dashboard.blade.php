@@ -15,10 +15,10 @@
         }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
 
     <!-- Top Header Navigation -->
-    <header class="bg-[#1e2532] px-6 py-4 border-b border-slate-700">
+    <header class="bg-[#1e2532] px-6 py-4 border-b border-slate-700 sticky top-0 z-50 shadow-md">
         <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
             <div class="flex items-center gap-4">
                 <a href="{{ route('merchants.index') }}" class="text-slate-300 hover:text-white transition flex items-center gap-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded border border-slate-600">
@@ -31,6 +31,17 @@
             </div>
 
             <div class="flex items-center gap-3">
+                @if(isset($current_merchant))
+                    <a href="{{ route('merchants.customers.create', $current_merchant) }}" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded transition flex items-center gap-1.5 shadow-sm">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
+                        + Add Customer
+                    </a>
+                    <a href="{{ route('merchants.edit', $current_merchant) }}" class="bg-slate-700 hover:bg-slate-600 text-slate-200 hover:text-white text-xs font-semibold px-3 py-1.5 rounded transition flex items-center gap-1.5 border border-slate-600">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                        Edit Merchant
+                    </a>
+                @endif
+
                 <!-- Quick Switcher Dropdown -->
                 @if(isset($all_merchants) && $all_merchants->count() > 0)
                     <div class="flex items-center gap-2 bg-slate-800/90 border border-slate-600 rounded px-2.5 py-1 text-xs">
@@ -54,16 +65,28 @@
     </header>
 
     <!-- Main Container -->
-    <main class="max-w-7xl mx-auto px-6 py-8 space-y-6">
+    <main class="max-w-7xl mx-auto px-6 py-8 space-y-6 flex-1 w-full">
+
+        <!-- Flash Success Notification -->
+        @if(session('success'))
+            <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl text-xs flex items-center justify-between shadow-xs">
+                <div class="flex items-center gap-2">
+                    <span class="text-emerald-600 text-base">✅</span>
+                    <span class="font-medium">{{ session('success') }}</span>
+                </div>
+                <button type="button" onclick="this.parentElement.remove()" class="text-emerald-600 hover:text-emerald-900 font-bold">&times;</button>
+            </div>
+        @endif
 
         <!-- Top Row Metric Cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- Current Cycle Usage Card -->
-            <div class="bg-white rounded-lg border border-slate-200 border-l-4 border-l-blue-600 p-5 shadow-xs">
+
+            <!-- Cycle Usage Card -->
+            <div class="bg-white rounded-lg border border-slate-200 border-l-4 border-l-[#2b6cb0] p-5 shadow-xs">
                 <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                    Current Cycle Usage
+                    Current Cycle Usage vs. Plan Quota
                 </p>
-                <p class="text-2xl font-bold text-slate-900 tracking-tight">
+                <p class="text-2xl font-bold text-slate-900 tracking-tight font-mono">
                     {{ $cycle_usage_display }}
                 </p>
             </div>
@@ -80,13 +103,21 @@
 
             <!-- Active Plan Card -->
             <div class="bg-white rounded-lg border border-slate-200 border-l-4 border-l-emerald-600 p-5 shadow-xs">
-                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                    Active Plan
-                </p>
-                <p class="text-2xl font-bold text-slate-900 tracking-tight">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        Active Plan
+                    </p>
+                    @if(isset($current_merchant))
+                        <span class="text-[11px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                            {{ $current_merchant->customers()->count() }} Customers
+                        </span>
+                    @endif
+                </div>
+                <p class="text-2xl font-bold text-slate-900 tracking-tight truncate">
                     {{ $active_plan }}
                 </p>
             </div>
+
         </div>
 
         <!-- 2-Column Content Grid -->
@@ -97,9 +128,16 @@
 
                 <!-- Top 5 Customers Table -->
                 <div class="bg-white rounded-lg border border-slate-200 p-6 shadow-xs">
-                    <h2 class="text-sm font-bold text-slate-800 mb-4">
-                        Top 5 Customers by Usage (this cycle)
-                    </h2>
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-sm font-bold text-slate-800">
+                            Top 5 Customers by Usage (this cycle)
+                        </h2>
+                        @if(isset($current_merchant))
+                            <a href="{{ route('merchants.customers.create', $current_merchant) }}" class="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 hover:underline">
+                                + Add Customer
+                            </a>
+                        @endif
+                    </div>
 
                     <div class="border border-slate-200 rounded-md overflow-hidden">
                         <table class="w-full text-left text-sm">
@@ -202,6 +240,11 @@
         </div>
 
     </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-200 bg-white py-4 px-6 text-center text-xs text-slate-500 mt-auto">
+        <p>Mallow Billing System &copy; {{ date('Y') }} &mdash; High-Throughput Metering & Idempotent Usage Pipeline</p>
+    </footer>
 
     <!-- Chart.js Configuration -->
     <script>

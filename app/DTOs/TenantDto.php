@@ -68,7 +68,6 @@ final class TenantDto
             'slug' => $this->slug,
             'email' => $this->email,
             'currency' => $this->currency,
-            'credit_balance_cents' => $this->creditBalanceCents,
             'status' => $this->status,
             'timezone' => $this->timezone,
         ], fn ($value) => $value !== null);

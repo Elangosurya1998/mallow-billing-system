@@ -21,17 +21,9 @@ class Tenant extends Model
         'slug',
         'email',
         'currency',
-        'credit_balance_cents',
         'status',
         'timezone',
     ];
-
-    protected function casts(): array
-    {
-        return [
-            'credit_balance_cents' => 'integer',
-        ];
-    }
 
     public function subscriptions(): HasMany
     {
